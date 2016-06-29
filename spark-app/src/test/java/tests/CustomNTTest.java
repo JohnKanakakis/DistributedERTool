@@ -16,7 +16,7 @@ import org.eclipse.rdf4j.rio.RDFParseException;
 
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList;
 import scala.Tuple2;
-import spark.filter.DataFormatter;
+import spark.DataFormatter;
 import spark.io.CustomNTriplesParser;
 
 public class CustomNTTest {

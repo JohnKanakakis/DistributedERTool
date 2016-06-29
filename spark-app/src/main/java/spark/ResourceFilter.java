@@ -43,13 +43,8 @@ import com.hp.hpl.jena.vocabulary.RDF;
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import scala.Tuple2;
-import spark.blocking.BlockCreator;
-import spark.filter.DataFormatter;
-import spark.filter.PersonFilter;
 import spark.io.DataReader;
-import spark.io.InstanceIndexCreator;
-import spark.io.InstanceIndexReader;
-import spark.model.DatasetInfo;
+
 import spark.model.DatasetManager;
 
 

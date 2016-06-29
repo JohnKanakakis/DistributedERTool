@@ -66,11 +66,9 @@ import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList;
 import it.unimi.dsi.fastutil.objects.ObjectBigList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import scala.Tuple2;
-import spark.blocking.BlockCreator;
-import spark.filter.DataFormatter;
 import spark.io.CustomNTriplesParser;
 import spark.io.DataReader;
-import spark.io.ZipFileInputFormat;
+
 
 public class DataTransformerToNT {
 

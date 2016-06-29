@@ -9,7 +9,7 @@ public class DatasetManager implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
-	private static HashMap<Integer,DatasetInfo> datasets = new HashMap<Integer,DatasetInfo>();
+	
 	private static final String DATASET_STAMP = "_";
 	private static DatasetManager dm = null;
 	
@@ -25,16 +25,7 @@ public class DatasetManager implements Serializable{
 		datasets.put(datasetInfo.getId(), datasetInfo);
 	}
 	*/
-	public DatasetInfo getDatasetInfo(int id){
-		return datasets.get(id);
-	}
-	
-	public DatasetInfo getDatasetOfResource(String resource){
-		
-		int pos = resource.lastIndexOf(DATASET_STAMP);
-		int datasetId = Integer.parseInt(resource.substring(pos));
-		return datasets.get(datasetId);
-	}
+
 	
 	public static String addDatasetIdToResource(String resource, String datasetId){
 		

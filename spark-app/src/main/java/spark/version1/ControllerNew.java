@@ -31,7 +31,6 @@ import spark.IndexCreator;
 import spark.Linker;
 import spark.ResourceFilter;
 import spark.Utils;
-import spark.model.DatasetInfo;
 import spark.statistics.BlockStatistics;
 
 public class ControllerNew {

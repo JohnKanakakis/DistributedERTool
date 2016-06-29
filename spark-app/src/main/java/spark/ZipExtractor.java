@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import scala.Tuple2;
-import spark.filter.DataFormatter;
 import spark.io.DataReader;
 import spark.model.DatasetManager;
 

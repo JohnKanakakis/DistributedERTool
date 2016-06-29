@@ -1,18 +1,8 @@
 package spark;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.aksw.limes.core.execution.planning.plan.NestedPlan;
 import org.aksw.limes.core.execution.planning.planner.ExecutionPlannerFactory;
@@ -21,35 +11,18 @@ import org.aksw.limes.core.execution.rewriter.Rewriter;
 import org.aksw.limes.core.execution.rewriter.RewriterFactory;
 import org.aksw.limes.core.io.config.reader.xml.XMLConfigurationReader;
 import org.aksw.limes.core.io.ls.LinkSpecification;
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.spark.Accumulator;
-import org.apache.spark.HashPartitioner;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.AbstractJavaRDDLike;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import scala.Tuple2;
-import spark.blocking.BlockCreator;
-import spark.io.DataReader;
-import spark.model.DatasetInfo;
-import spark.model.DatasetManager;
 import spark.statistics.BlockStatistics;
+
 
 public class Controller {
 
@@ -74,11 +47,6 @@ public class Controller {
 			return;
 		}
 		
-		//DatasetInfo d1 = new DatasetInfo(config.getSourceInfo());
-		//DatasetInfo d2 = new DatasetInfo(config.getTargetInfo());
-		
-
-		
 		Rewriter rw = RewriterFactory.getRewriter("Default");
         LinkSpecification ls = new LinkSpecification(config.getMetricExpression(), config.getVerificationThreshold());
         LinkSpecification rwLs = rw.rewrite(ls);
@@ -100,12 +68,7 @@ public class Controller {
        
         
     	SparkConf sparkConf = new SparkConf().setAppName("Controller");
-    	/*sparkConf.set("spark.executor.extraJavaOptions", "-XX:-PrintGCDetails "+
-    													 "-XX:+HeapDumpOnOutOfMemoryError "+
-														 "-XX:HeapDumpPath=./myheapdump.hprof " +
-														 "-XX:OnOutOfMemoryError=./dump.sh");*/
     	
-		//sparkConf.registerKryoClasses(new Class[]{DatasetManager.class});
     	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
     	
     	
@@ -257,38 +220,3 @@ public class Controller {
 	}
 }
 
-/*
- *  //JavaPairRDD<String, Tuple2<Integer, String>> W_BKV = ctx.parallelizePairs(a);
-        
-        //(BKV, ( (W,BKV), {r_id}) )
-        /*JavaPairRDD<String, Tuple2<Tuple2<Integer, String>, ObjectOpenHashBigSet<Tuple2<String, String>>>> W_R 
-        = W_BKV.join(resourceIndex);
-        
-        //(W, (BKV, {r_id}) )
-        PairFunction<Tuple2<String, Tuple2<Tuple2<Integer, String>, ObjectOpenHashBigSet<Tuple2<String, String>>>>, 
-        		 Integer, Tuple2<String, ObjectOpenHashBigSet<Tuple2<String, String>>>> f = 
-        new PairFunction<Tuple2<String, Tuple2<Tuple2<Integer, String>, ObjectOpenHashBigSet<Tuple2<String, String>>>>, 
-		 Integer, Tuple2<String, ObjectOpenHashBigSet<Tuple2<String, String>>>>(){
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Tuple2<Integer, Tuple2<String, ObjectOpenHashBigSet<Tuple2<String, String>>>> call(
-					Tuple2<String, Tuple2<Tuple2<Integer, String>, ObjectOpenHashBigSet<Tuple2<String, String>>>> arg0)
-					throws Exception {
-				// TODO Auto-generated method stub
-				int W = arg0._2._1._1;
-				String BKV = arg0._2._1._2;
-				ObjectOpenHashBigSet<Tuple2<String, String>> set = arg0._2._2;
-				Tuple2<String, ObjectOpenHashBigSet<Tuple2<String, String>>> t = 
-						new Tuple2<String,ObjectOpenHashBigSet<Tuple2<String, String>>>(BKV,set);
-				return new Tuple2<Integer, Tuple2<String, ObjectOpenHashBigSet<Tuple2<String, String>>>>(W,t);
-			}
-        };
-        
-		
-       // W_R.mapToPair(f).saveAsTextFile(args[4]);
-        
-        //resourceIndex.saveAsTextFile(args[4]);
-        //Utils.countPairs(resourceIndex);
- */
- 

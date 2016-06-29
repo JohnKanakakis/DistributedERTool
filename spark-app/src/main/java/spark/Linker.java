@@ -68,10 +68,9 @@ import com.esotericsoftware.kryo.Kryo;
 import com.hp.hpl.jena.vocabulary.OWL;
 
 import scala.Tuple2;
-import spark.blocking.BlockCreator;
-import spark.filter.DataFormatter;
 import spark.io.DataReader;
 import spark.model.DatasetManager;
+
 
 public class Linker {
 	

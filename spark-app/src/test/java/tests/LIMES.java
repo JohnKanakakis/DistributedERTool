@@ -56,9 +56,9 @@ import com.hp.hpl.jena.rdf.model.ResourceFactory;
 import com.hp.hpl.jena.vocabulary.RDF;
 
 import scala.Tuple2;
+import spark.DataFormatter;
 import spark.Linker;
 import spark.Utils;
-import spark.filter.DataFormatter;
 import spark.model.DatasetManager;
 
 public class LIMES {
@@ -250,7 +250,8 @@ public class LIMES {
 			System.out.println(kb.getProperties());
 			HashSet<String> configProperties = new HashSet<String>(kb.getProperties());
 			System.out.println("properties = "+configProperties);
-			/*for(String sub : resources.keySet()){
+			
+			for(String sub : resources.keySet()){
 				
 				POs = resources.get(sub);
 				String record = "";
@@ -266,7 +267,7 @@ public class LIMES {
 						record+=(object.replace("\"", "")+" ");
 						if(kb.getFunctions().get(predicate).keySet().size() == 0){
 							m.addTriple(sub, predicate, object);
-							//record+=(object.replace("\"", "")+" ");
+							
 						}else{
 							
 							for (String propertyDub : kb.getFunctions().get(predicate).keySet()) {
@@ -278,10 +279,9 @@ public class LIMES {
 																			  .get(propertyDub));
 								
 								System.out.println("processed value "+value);
-								//System.out.println("adding statement "+ st.getSubject().toString() +" "+
-								//		propertyDub +" "+value);
+								
 								m.addTriple(sub, propertyDub, value);
-								//record+=(value.replace("\"", "")+" ");
+								
 							}
 						}
 						
@@ -307,7 +307,7 @@ public class LIMES {
 				}
 				//System.out.println("record to index = "+record);
 			}
-			*/
+		
 		} catch (IOException | RDFParseException | RDFHandlerException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();

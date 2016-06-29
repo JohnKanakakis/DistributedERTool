@@ -39,11 +39,7 @@ import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
 import scala.Tuple2;
-import spark.blocking.BlockCreator;
-import spark.filter.DataFormatter;
 import spark.io.DataReader;
-import spark.io.InstanceIndexReader;
-import spark.model.DatasetInfo;
 import spark.model.DatasetManager;
 
 public class IndexCreator {
@@ -51,7 +47,7 @@ public class IndexCreator {
 	public static String[] commonTokens = {"a","and","it","of"," "};
 	
 	public static Logger logger = LoggerFactory.getLogger(IndexCreator.class);
-	
+	/*
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 
@@ -70,18 +66,18 @@ public class IndexCreator {
        
         
         JavaPairRDD<String, List<String>> personIndex = InstanceIndexReader.run(indexData);
-        /*
+        
         List<Tuple2<String, String>> sample = personIndex.take(10);
         for(int i = 0; i < sample.size(); i++){
         	sparkConf.log().info(sample.get(i)._1+"|"+sample.get(i)._2);
-        }*/
+        }
         
        // JavaPairRDD<String, Tuple2<String, String>> blocks = run(personIndex,null,null);
        
     	//blocks.saveAsTextFile(args[1]);
         
         ctx.close();
-	}
+	}*/
 
 	
 	/*public static JavaPairRDD<String, Tuple2<String, String>> run(JavaPairRDD<String,List<String>> index,
