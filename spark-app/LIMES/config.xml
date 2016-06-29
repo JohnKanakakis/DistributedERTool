@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE LIMES SYSTEM "limes.dtd">
+<LIMES>
+	<PREFIX>
+		<NAMESPACE>http://www.w3.org/1999/02/22-rdf-syntax-ns#</NAMESPACE>
+		<LABEL>rdf</LABEL>
+	</PREFIX>
+	<PREFIX>
+		<NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
+		<LABEL>rdfs</LABEL>
+	</PREFIX>
+	<SOURCE>
+		<ID>source1</ID>
+		<ENDPOINT></ENDPOINT>
+		<VAR>?x</VAR>
+		<PAGESIZE>100</PAGESIZE>
+		<RESTRICTION>?x rdf:type http://xmlns.com/foaf/0.1/Person</RESTRICTION>
+		<!-- <PROPERTY>http://xmlns.com/foaf/0.1/name RENAME Name</PROPERTY> -->
+		<PROPERTY>http://www.oav.com/datasourcetype </PROPERTY>
+		<PROPERTY>http://xmlns.com/foaf/0.1/lastName AS lowercase RENAME lastName</PROPERTY>
+		<PROPERTY>http://xmlns.com/foaf/0.1/firstName AS lowercase RENAME firstName</PROPERTY>
+	</SOURCE>
+	<TARGET>
+		<ID>source2</ID>
+		<ENDPOINT></ENDPOINT>
+		<VAR>?y</VAR>
+		<PAGESIZE>100</PAGESIZE>
+		<RESTRICTION>?y rdf:type http://xmlns.com/foaf/0.1/Person</RESTRICTION>
+		<!-- <PROPERTY>http://xmlns.com/foaf/0.1/name RENAME Name</PROPERTY> -->
+		<PROPERTY>http://xmlns.com/foaf/0.1/Name AS lowercase->regexreplace((.* ),") RENAME lastName</PROPERTY>
+		<PROPERTY>http://xmlns.com/foaf/0.1/Name AS lowercase->regexreplace(( .*),") RENAME firstName</PROPERTY>
+	</TARGET>
+	<METRIC>AND(jaro(x.lastName,y.lastName)|0.8,jaro(x.firstName,y.firstName)|0.8)
+	</METRIC>
+	<!-- <METRIC>jaro(x.Name,y.Name)|1.0</METRIC> -->
+	<ACCEPTANCE>
+		<THRESHOLD>0.95</THRESHOLD>
+		<FILE>LIMES/people_duplicates.nt</FILE>
+		<RELATION>owl:sameAs</RELATION>
+	</ACCEPTANCE>
+	<REVIEW>
+		<THRESHOLD>0.8</THRESHOLD>
+		<FILE>LIMES/people_reviewme.nt</FILE>
+		<RELATION>owl:sameAs</RELATION>
+	</REVIEW>
+	<EXECUTION>Default</EXECUTION>
+	<OUTPUT>TTL</OUTPUT>
+</LIMES>
