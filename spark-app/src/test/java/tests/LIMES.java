@@ -81,7 +81,7 @@ public class LIMES {
     	
 		org.aksw.limes.core.io.config.Configuration config = null;
 		
-		InputStream configFile = FileUtils.openInputStream(new File("LIMES/config2.xml"));
+		InputStream configFile = FileUtils.openInputStream(new File("LIMES/config.xml"));
 		InputStream dtdFile = FileUtils.openInputStream(new File("LIMES/limes.dtd"));;
 		config = reader.validateAndRead(configFile,dtdFile);
 		
@@ -236,6 +236,7 @@ public class LIMES {
 				    		}
 							else{
 								for(String propertyDub : kb.getFunctions().get(predicate).keySet()) {
+									System.out.println("property dub ->"+propertyDub);
 									String value = Preprocessor.process(object, kb.getFunctions().get(predicate).get(propertyDub));
 									m.addTriple(subject, propertyDub, value);
 								}

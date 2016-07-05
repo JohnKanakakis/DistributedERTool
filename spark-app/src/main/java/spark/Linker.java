@@ -74,99 +74,8 @@ import spark.model.DatasetManager;
 
 public class Linker {
 	
-	public static final int CACHE_LIMIT = 10000; 
+	
 	public static Logger logger = LoggerFactory.getLogger(Linker.class);
-	//public static final Accumulator<Integer> linkedResourcesCounter;
-	
-	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-
-		List<Tuple2<String,Set<List<String>>>> ts = new ArrayList<Tuple2<String,Set<List<String>>>>();
-        
-        Set<List<String>> set = new HashSet<List<String>>(); 
-        for(int i = 0; i < 100000; i++){
-        	List<String> l = new ArrayList<String>();
-        	for(int j = 0; j < 1000; j++){
-        		l.add("e"+j);
-        	}
-        	set.add(l);
-        	Tuple2<String, Set<List<String>>> t = new Tuple2<String,Set<List<String>>>("s"+i,set);
-        	ts.add(t);
-        }
-		
-		
-		SparkConf sparkConf = new SparkConf().setAppName("Linker");
-		Logger logger = sparkConf.log();
-	
-    	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-    	ctx.addJar("hdfs://master:8020/user/kanakakis/limes-core-1.0.0-SNAPSHOT.jar");
-
-    	InputStream configFile = Utils.getHDFSFile(args[0]);
-    	InputStream dtdFile = Utils.getHDFSFile(args[1]);
-    	
-    	XMLConfigurationReader reader = new XMLConfigurationReader();
-		org.aksw.limes.core.io.config.Configuration config = null;
-		config = reader.validateAndRead(configFile,dtdFile);
-    	
-		if(config == null){
-			ctx.close();
-			return;
-		}
-		
-		Rewriter rw = RewriterFactory.getRewriter("Default");
-        LinkSpecification ls = new LinkSpecification(config.getMetricExpression(), config.getVerificationThreshold());
-        LinkSpecification rwLs = rw.rewrite(ls);
-	    IPlanner planner = ExecutionPlannerFactory.getPlanner(config.getExecutionPlan(), null, null);
-        assert planner != null;
-        NestedPlan plan = planner.plan(rwLs);
-        
-        
-        
-        byte[] planBinary = Utils.serialize(plan);
-        logger.info("config bytes = "+planBinary.length);
-        
-        String[] configParams = new String[2];
-        configParams[0] = config.getSourceInfo().getVar();
-        configParams[1] = config.getTargetInfo().getVar();
-        
-        double thres = config.getAcceptanceThreshold();
-        
-		Broadcast<byte[]> b = ctx.broadcast(planBinary);
-		Broadcast<String[]> c = ctx.broadcast(configParams);
-		Broadcast<Double> t = ctx.broadcast(thres);
-		
-		
-		/*byte[] lsBinary = serialize(rwLs);
-		
-		Broadcast<byte[]> l = ctx.broadcast(lsBinary);
-	
-		logger.info("ls bytes = "+lsBinary.length);*/
-		
-		
-		//serializeConfigurationToFile(config,configSerPath);
-		//ctx.addFile(configSerPath.toString());
-    	
-    	//Broadcast<org.aksw.limes.core.io.config.Configuration> b_config = ctx.broadcast(config);
-    	
-    	
-    	Configuration conf = new org.apache.hadoop.conf.Configuration();
-        conf.set("textinputformat.record.delimiter", "\n");
-        
-        final JavaRDD<String> records = DataReader.run(ctx.newAPIHadoopFile(args[2], 
-        											 TextInputFormat.class, 
-        											 LongWritable.class, 
-        											 Text.class,
-        											 conf));
-       
-        JavaPairRDD<String, Set<List<String>>> blocks = ctx.parallelizePairs(ts,100);
-        
-		//JavaRDD<String> links = run(blocks,null,null,b,c,t);
-		//links.saveAsTextFile(args[3]);
-		ctx.close();
-	}
-
-	
-
 	
 
 	public static JavaPairRDD<String, Set<Tuple2<String, Double>>> run(JavaPairRDD<String, List<List<String>>> blocks, 
@@ -190,12 +99,12 @@ public class Linker {
 				new Function2<Set<Tuple2<String,Double>>,Tuple2<String,Double>,Set<Tuple2<String,Double>>>(){
 					private static final long serialVersionUID = 1L;
 					@Override
-					public Set<Tuple2<String,Double>> call(Set<Tuple2<String,Double>> personInfoSetPerKey, 
-							Tuple2<String,Double> personInfo) 
+					public Set<Tuple2<String,Double>> call(Set<Tuple2<String,Double>> resourceInfoSetPerKey, 
+							Tuple2<String,Double> resourceInfo) 
 					throws Exception {
 						// TODO Auto-generated method stub
-						personInfoSetPerKey.add(personInfo);
-						return personInfoSetPerKey;
+						resourceInfoSetPerKey.add(resourceInfo);
+						return resourceInfoSetPerKey;
 					}
 		};
 		
@@ -203,12 +112,12 @@ public class Linker {
 				new Function2<Set<Tuple2<String,Double>>,Set<Tuple2<String,Double>>,Set<Tuple2<String,Double>>>(){
 					private static final long serialVersionUID = 1L;
 					@Override
-					public Set<Tuple2<String,Double>> call(Set<Tuple2<String,Double>> personInfoSetPerKey_1, 
-											Set<Tuple2<String,Double>> personInfoSetPerKey_2) 
+					public Set<Tuple2<String,Double>> call(Set<Tuple2<String,Double>> resourceInfoSetPerKey_1, 
+											Set<Tuple2<String,Double>> resourceInfoSetPerKey_2) 
 					throws Exception {
 						// TODO Auto-generated method stub
-						personInfoSetPerKey_1.addAll(personInfoSetPerKey_2);
-						return personInfoSetPerKey_1;
+						resourceInfoSetPerKey_1.addAll(resourceInfoSetPerKey_2);
+						return resourceInfoSetPerKey_1;
 					}
 		};
 		
@@ -343,14 +252,17 @@ public class Linker {
 							HashMap<String, Double> targets;
 							double sim;
 							int linksCnt = 0;
+							
 							for(String source: verificationMapping.getMap().keySet()){
 								sourceInfo = s.getInstance(source).toString();
 								targets = verificationMapping.getMap().get(source);
 								links.ensureCapacity(targets.keySet().size());
 								for(String target: targets.keySet()){
 									sim = targets.get(target);
+									
 									if(sim >= thres.getValue()){
 										linksCnt++;
+										
 										targetInfo = t.getInstance(target).toString();
 										tp = new Tuple2<String,Double>(targetInfo,sim);
 										links.add(new Tuple2<String,Tuple2<String,Double>>(sourceInfo,tp));

@@ -47,8 +47,10 @@ public class ZipExtractor {
 		SparkConf sparkConf = new SparkConf().setAppName("ZipExtractor");
     	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
 		
-		JavaPairRDD<String, PortableDataStream> zipFiles = ctx.binaryFiles(args[0],1600);
+		JavaPairRDD<String, PortableDataStream> zipFiles = ctx.binaryFiles(args[0]);
     	final String unzippedDir = args[1];
+    	
+    	
     	
     	zipFiles.foreach(new VoidFunction<Tuple2<String,PortableDataStream>>(){
 
@@ -77,13 +79,13 @@ public class ZipExtractor {
 		        zis.close();
 		        stream.close();
 		      
-		        
+		        hdfs.close();
 		       // zis = null;
 		        //stream = null;
 			}
     	});
     	
-		//ctx.textFile(unzippedDir,1600).saveAsTextFile(unzippedDir+"_new");
+		//ctx.textFile(unzippedDir,500).saveAsTextFile(unzippedDir+"_new");
     	ctx.close();
 		
 	}

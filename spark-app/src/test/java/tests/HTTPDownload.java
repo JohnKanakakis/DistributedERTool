@@ -20,14 +20,14 @@ public class HTTPDownload {
 		
 		
 		//System.out.printf("%6d",d.intValue());
-		for(int i = 2; i <= N; i++){
+	/*	for(int i = 2; i <= N; i++){
 			
 			System.out.println("OA_dump_"+String.format("%06d", i)+".nt.gz");
 				
-		}
+		}*/
 		
-		/*FileUtils.copyURLToFile(new URL("https://zenodo.org/record/53077/files/OA_dump_000002.nt.gz"), 
-				new File("OA_dump_000002.nt.gz"));*/
+		FileUtils.copyURLToFile(new URL("http://83.212.110.197:50070/logs/hadoop-cmf-hdfs-NAMENODE-master.log.out"), 
+				new File("logs-namenode"));
 		
 	}
 
