@@ -10,6 +10,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -69,7 +70,6 @@ import com.hp.hpl.jena.vocabulary.OWL;
 
 import scala.Tuple2;
 import spark.io.DataReader;
-import spark.model.DatasetManager;
 
 
 public class Linker {
@@ -77,22 +77,20 @@ public class Linker {
 	
 	public static Logger logger = LoggerFactory.getLogger(Linker.class);
 	
+	
 
-	public static JavaPairRDD<String, Set<Tuple2<String, Double>>> run(JavaPairRDD<String, List<List<String>>> blocks, 
-			               			  final Broadcast<byte[]> skb,
-			               			  final Broadcast<byte[]> tkb,
-									  final Broadcast<byte[]> p, 
-									  final Broadcast<String[]> c,
-									  final Broadcast<Double> thres, 
-									  final Integer optimalBlockSize) {
+	public static JavaPairRDD<String, String> run(JavaPairRDD<String, Set<List<String>>> blocks, 
+			               			  final Broadcast<byte[]> planBinary_B,
+			               			  final Broadcast<byte[]> configBinary_B) {
 		
-		final KBInfo sourceKb = (KBInfo) Utils.deserialize(skb.value());
-		final KBInfo targetKb = (KBInfo) Utils.deserialize(tkb.value());
-		final NestedPlan plan = (NestedPlan) Utils.deserialize(p.getValue());
-		final String[] configParams = c.getValue();
-		final String sourceVar = configParams[0];
-		final String targetVar = configParams[1];
+		final org.aksw.limes.core.io.config.Configuration config = (org.aksw.limes.core.io.config.Configuration) Utils.deserialize(configBinary_B.value());
+		final KBInfo sourceKb = config.getSourceInfo();
+		final KBInfo targetKb = config.getTargetInfo();
+		final NestedPlan plan = (NestedPlan) Utils.deserialize(planBinary_B.getValue());
 		
+		final String sourceVar = sourceKb.getVar();
+		final String targetVar = targetKb.getVar();
+		final double thres = config.getAcceptanceThreshold();
 		
 		
 		Function2<Set<Tuple2<String,Double>>,Tuple2<String,Double>,Set<Tuple2<String,Double>>> seqFunc = 
@@ -122,369 +120,154 @@ public class Linker {
 		};
 		
 		
-		PairFlatMapFunction<Tuple2<String, List<List<String>>>, String, Tuple2<String, Double>> linkF =
-				new PairFlatMapFunction<Tuple2<String, List<List<String>>>, String, Tuple2<String,Double>>(){
+		PairFlatMapFunction<Iterator<Tuple2<String, Set<List<String>>>>, String, Tuple2<String, Double>> linkF =
+				new PairFlatMapFunction<Iterator<Tuple2<String, Set<List<String>>>>, String, Tuple2<String,Double>>(){
 					private static final long serialVersionUID = 1L;
 					SimpleExecutionEngine engine = new SimpleExecutionEngine();
 					
-					@Override
-					public Iterable<Tuple2<String, Tuple2<String,Double>>> call(Tuple2<String, List<List<String>>> blockPair) throws Exception {
+					
+				    @Override
+					public Iterable<Tuple2<String, Tuple2<String,Double>>> call(Iterator<Tuple2<String, Set<List<String>>>> blocksOfPartition) throws Exception {
 						// TODO Auto-generated method stub
 						ArrayList<Tuple2<String,Tuple2<String,Double>>> partitionLinks = 
 								new ArrayList<Tuple2<String,Tuple2<String,Double>>>();
 						
 						
+						Tuple2<String, Set<List<String>>> blockPair;
+						while(blocksOfPartition.hasNext()){
+							blockPair = blocksOfPartition.next();
+							partitionLinks.addAll(getLinksOfBlock(blockPair));
+						}
 						
-						MemoryCache sourceCache = new MemoryCache();
-					    MemoryCache targetCache = new MemoryCache();
-					    MemoryCache cache = null;
-					    //ArrayList<Tuple2<String,Tuple2<String,Double>>> localLinks = null;
-						
-						KBInfo kb = null;
-					    
-						
-						
-						List<List<String>> block;
-						//List<String> resourceInfo = null;
-					    String subject = null;
-						String predicate = null;
-						String object = null;
-						String value;
-						String datasetId;
+						return partitionLinks;
+					}		
+					
+					private List<Tuple2<String, Tuple2<String, Double>>> getLinksOfBlock(
+							Tuple2<String, Set<List<String>>> blockPair) {
+						// TODO Auto-generated method stub
+						ArrayList<Tuple2<String,Tuple2<String,Double>>> localLinks = 
+								new ArrayList<Tuple2<String,Tuple2<String,Double>>>();
 						
 						int cnt1 = 0;
 						int cnt2 = 0;
-						int cnt = 0;
-						//boolean limit_reached = false;
-						//Tuple2<String, Set<List<String>>> t;
-						//while(blocksPerPartition.hasNext()){
-							//t = blocksPerPartition.next();
-							block = blockPair._2;
-							//
-							
-							//logger.info("("+t._1+","+block.size()+")");
-							
-							if(block.size() < 2) return partitionLinks;
-							if(block.size() > optimalBlockSize){
-								logger.info("mega block size = "+block.size()+ "for token = "+blockPair._1);
-								return partitionLinks;
-							}
-							
-							//cnt++;
-							//Iterator<List<String>> it = block._2.iterator();
-							//sourceCache.clear();
-							//targetCache.clear();
-							//boolean limit_reached = false;
-						   	for(List<String> resourceInfo : block){
-						   		//if(limit_reached) break;
-						    	subject = resourceInfo.get(0);
-						    	datasetId = DatasetManager.getDatasetIdOfResource(subject);
-						    	if(datasetId.equals(sourceKb.getId())){
-						    		cache = sourceCache;
-						    		kb = sourceKb;
-						    		//cnt1++;
-						    	}else if(datasetId.equals(targetKb.getId())){
-						    		cache = targetCache;
-						    		kb = targetKb;
-						    		//cnt2++;
-						    	}
-						    	/*if( (cnt1 > CACHE_LIMIT) || (cnt2 > CACHE_LIMIT)){
-						    		limit_reached = true;
-						    		continue;
-						    	}*/
-						    	if(resourceInfo.size()%2 == 0){
-						    		logger.error("malformed list "+resourceInfo);
-						    		return null;
-						    	}
-						    	
-						    	for(int i = 1; i < resourceInfo.size()-1; i = i+2){
-						    		predicate = resourceInfo.get(i);
-						    		
-						    		if(kb.getProperties().contains(predicate)){
-						    			object = DataFormatter.eliminateDataTypeFromLiteral(resourceInfo.get(i+1));
-							    		if(kb.getFunctions().get(predicate).keySet().size() == 0){
-							    			
-											cache.addTriple(subject, predicate, object);
-							    		}
-										else{
-											//System.out.println("examing property: "+predicate);
-											//remove localization information, e.g. @en
-											for (String propertyDub : kb.getFunctions().get(predicate).keySet()) {
-												
-												//System.out.println("raw value is "+rawValue);
-												value = Preprocessor.process(object, kb.getFunctions().get(predicate).get(propertyDub));
-												
-												//System.out.println("adding statement "+ predicate +" "+ propertyDub +" "+value);
-												cache.addTriple(subject, propertyDub, value);
-											}
-											//System.out.println("----------------------------------------------------");
-										}
-										
-									}
-									/*else{
-										//System.out.println("adding statement "+ st.toString());
+						String resourceId;
+						String datasetId;
+						for(List<String> resource : blockPair._2){
+							resourceId = resource.get(0);
+							datasetId = DatasetManager.getDatasetIdOfResource(resourceId);
+						  	if(datasetId.equals(sourceKb.getId())){
+						  		cnt1++;
+						  	}else if(datasetId.equals(targetKb.getId())){
+						  		cnt2++;
+						  	}
+						}
+						
+						MemoryCache sourceCache = new MemoryCache(cnt1);
+					    MemoryCache targetCache = new MemoryCache(cnt2);
+					    MemoryCache cache = null;
+					   
+						KBInfo kb = null;
+
+						String subject;
+						String predicate = null;
+						String object = null;
+						String value;
+						
+					   	for(List<String> resourceInfo : blockPair._2){
+					   	
+					    	subject = resourceInfo.get(0);
+					    	datasetId = DatasetManager.getDatasetIdOfResource(subject);
+					    	if(datasetId.equals(sourceKb.getId())){
+					    		cache = sourceCache;
+					    		kb = sourceKb;
+					    		
+					    	}else if(datasetId.equals(targetKb.getId())){
+					    		cache = targetCache;
+					    		kb = targetKb;
+					    		
+					    	}
+					    	
+					    	if(resourceInfo.size()%2 == 0){
+					    		logger.error("malformed list "+resourceInfo);
+					    		return null;
+					    	}
+					    	
+					    	for(int i = 1; i < resourceInfo.size()-1; i = i+2){
+					    		predicate = resourceInfo.get(i);
+					    		
+					    		if(kb.getProperties().contains(predicate)){
+					    			object = DataFormatter.eliminateDataTypeFromLiteral(resourceInfo.get(i+1));
+						    		if(kb.getFunctions().get(predicate).keySet().size() == 0){
+						    			
 										cache.addTriple(subject, predicate, object);
-									}*/
-						    	}
-						    }
-						   	if(sourceCache.size() == 0 || targetCache.size() == 0) return partitionLinks;
-						   	
-						   	partitionLinks = this.link(sourceCache, targetCache,partitionLinks);
-						   	
-						   	return partitionLinks;
-					}		
-					
-					private ArrayList<Tuple2<String,Tuple2<String,Double>>> link(MemoryCache s,
-							 												     MemoryCache t,
-					 												     		 ArrayList<Tuple2<String,Tuple2<String,Double>>> links){
-
-
-							engine.configure(s, t, sourceVar, targetVar);
-
-							Mapping verificationMapping = engine.execute(plan);
-
-							Tuple2<String,Double> tp = null;
-							String sourceInfo;
-							String targetInfo;
-							//logger.info("number of links: "+acceptanceMapping.getMap().keySet().size());
-							logger.info("source cache:"+s.size());
-							
-							HashMap<String, Double> targets;
-							double sim;
-							int linksCnt = 0;
-							
-							for(String source: verificationMapping.getMap().keySet()){
-								sourceInfo = s.getInstance(source).toString();
-								targets = verificationMapping.getMap().get(source);
-								links.ensureCapacity(targets.keySet().size());
-								for(String target: targets.keySet()){
-									sim = targets.get(target);
-									
-									if(sim >= thres.getValue()){
-										linksCnt++;
-										
-										targetInfo = t.getInstance(target).toString();
-										tp = new Tuple2<String,Double>(targetInfo,sim);
-										links.add(new Tuple2<String,Tuple2<String,Double>>(sourceInfo,tp));
+						    		}
+									else{
+										for (String propertyDub : kb.getFunctions().get(predicate).keySet()) {
+											value = Preprocessor.process(object, kb.getFunctions().get(predicate).get(propertyDub));
+											cache.addTriple(subject, propertyDub, value);
+										}
 									}
+									
 								}
+					    	}
+					    }
+						   	
+						if(sourceCache.size() == 0 || targetCache.size() == 0) return localLinks;
+					   	
+						engine.configure(sourceCache, targetCache, sourceVar, targetVar);
+
+						Mapping verificationMapping = engine.execute(plan);
+
+						Tuple2<String,Double> tp = null;
+						
+						HashMap<String, Double> targets;
+						for(String source: verificationMapping.getMap().keySet()){
+							targets = verificationMapping.getMap().get(source);
+							double maxSim = 0.0;
+							double sim;
+				        	String maxTarget = "";
+				        	int loopCnt = 0;
+							for(String target: targets.keySet()){
+								if(loopCnt == 0){
+				        			maxTarget = target;
+				        			maxSim = targets.get(target).doubleValue();
+				        			loopCnt++;
+				        		}
+				        		sim = targets.get(target).doubleValue();
+				        		 
+				        		if(sim >= maxSim){
+				        			maxSim = sim;
+				        			maxTarget = target;
+				        		}
 							}
-							logger.info("number of links "+linksCnt);
-							return links;
-					}
+							if(maxSim >= thres){
+								tp = new Tuple2<String,Double>(DatasetManager.removeDatasetFromResource(maxTarget),maxSim);
+								localLinks.add(new Tuple2<String,Tuple2<String,Double>>(DatasetManager.removeDatasetFromResource(source),tp));
+				        	}
+						}
+					   	return localLinks;
+				}	
 		};
 		
-		JavaPairRDD<String, Set<Tuple2<String, Double>>> links = blocks.flatMapToPair(linkF)
-									  .aggregateByKey(new HashSet<Tuple2<String,Double>>(), seqFunc, combFunc);
-									  /*.flatMap(new FlatMapFunction<Tuple2<String,Set<Tuple2<String,Double>>>,String>(){
-											private static final long serialVersionUID = 1L;
-											@Override
-											public Iterable<String> call(Tuple2<String, Set<Tuple2<String,Double>>> linkPairs) throws Exception {
-												// TODO Auto-generated method stub
-												String s = linkPairs._1;
-												ArrayList<String> links = new ArrayList<String>();
-												//links.add(s+" "+linkPairs._2);
-												for(Tuple2<String,Double> t:linkPairs._2){
-													
-													links.add(s+" "+OWL.sameAs.getURI() + " "+t);
-												}
-												return links;
-											}
-								  		});*/
-		return links;
-	
-	}
-
-	
-	public static JavaPairRDD<String, Set<Tuple2<String, Double>>> runWithList(JavaPairRDD<String, List<String>> blocks, 
-																 			  final Broadcast<byte[]> skb,
-																 			  final Broadcast<byte[]> tkb,
-																			  final Broadcast<byte[]> p, 
-																			  final Broadcast<String[]> c,
-																			  final Broadcast<Double> thres, 
-																			  final Integer optimalBlockSize) {
-
-		final KBInfo sourceKb = (KBInfo) Utils.deserialize(skb.value());
-		final KBInfo targetKb = (KBInfo) Utils.deserialize(tkb.value());
-		final NestedPlan plan = (NestedPlan) Utils.deserialize(p.getValue());
-		final String[] configParams = c.getValue();
-		final String sourceVar = configParams[0];
-		final String targetVar = configParams[1];
-
-
-
-		Function2<Set<Tuple2<String,Double>>,Tuple2<String,Double>,Set<Tuple2<String,Double>>> seqFunc = 
-		new Function2<Set<Tuple2<String,Double>>,Tuple2<String,Double>,Set<Tuple2<String,Double>>>(){
-			private static final long serialVersionUID = 1L;
-			@Override
-			public Set<Tuple2<String,Double>> call(Set<Tuple2<String,Double>> personInfoSetPerKey, 
-				Tuple2<String,Double> personInfo) 
-			throws Exception {
-			// TODO Auto-generated method stub
-				personInfoSetPerKey.add(personInfo);
-				return personInfoSetPerKey;
-			}
-		};
-
-		Function2<Set<Tuple2<String,Double>>,Set<Tuple2<String,Double>>,Set<Tuple2<String,Double>>> combFunc = 
-		new Function2<Set<Tuple2<String,Double>>,Set<Tuple2<String,Double>>,Set<Tuple2<String,Double>>>(){
-			private static final long serialVersionUID = 1L;
-			@Override
-			public Set<Tuple2<String,Double>> call(Set<Tuple2<String,Double>> personInfoSetPerKey_1, 
-								Set<Tuple2<String,Double>> personInfoSetPerKey_2) 
-			throws Exception {
-			// TODO Auto-generated method stub
-				personInfoSetPerKey_1.addAll(personInfoSetPerKey_2);
-				return personInfoSetPerKey_1;
-			}
-		};
-
-
-		PairFlatMapFunction<Tuple2<String, List<String>>, String, Tuple2<String, Double>> linkF =
-		new PairFlatMapFunction<Tuple2<String, List<String>>, String, Tuple2<String,Double>>(){
-		private static final long serialVersionUID = 1L;
-			SimpleExecutionEngine engine = new SimpleExecutionEngine();
-			
-			@Override
-			public Iterable<Tuple2<String, Tuple2<String,Double>>> call(Tuple2<String, List<String>> blockPair) throws Exception {
-			// TODO Auto-generated method stub
-			ArrayList<Tuple2<String,Tuple2<String,Double>>> links = 
-					new ArrayList<Tuple2<String,Tuple2<String,Double>>>();
-			
-			
-			int cnt1 = 0;
-			int cnt2 = 0;
-			int cnt = 0;
-			String subject = null;
-			String predicate = null;
-			String object = null;
-			String value;
-			String datasetId;
-			
-			for(int i = 0; i < blockPair._2.size()-1; i++){
-				if(blockPair._2.get(i).equals("@@@")){
-					cnt++;
-					subject = blockPair._2.get(i+1);
-				  	datasetId = DatasetManager.getDatasetIdOfResource(subject);
-				  	if(datasetId.equals(sourceKb.getId())){
-				  		cnt1++;
-				  	}else if(datasetId.equals(targetKb.getId())){
-				  		cnt2++;
-				  	}
-				}
-			}
-			
-			
-			if(cnt == 0 || cnt1 == 0 || cnt2 == 0){
-				return links;
-			}
-			
-			if(cnt > optimalBlockSize)
-				return links;
-			
-			
-			MemoryCache sourceCache = new MemoryCache(cnt1);
-			MemoryCache targetCache = new MemoryCache(cnt2);
-			MemoryCache cache = null;
-			KBInfo kb = null;
-			
-			
-			for(int i = 0; i < blockPair._2.size()-2; i++){
-				if(blockPair._2.get(i).equals("@@@")){
-					cnt++;
-					subject = blockPair._2.get(i+1);
-				  	datasetId = DatasetManager.getDatasetIdOfResource(subject);
-				  	if(datasetId.equals(sourceKb.getId())){
-				  		cache = sourceCache;
-				  		kb = sourceKb;
-				  	}else if(datasetId.equals(targetKb.getId())){
-				  		cache = targetCache;
-				  		kb = targetKb;
-				  	}
-				  	int j = i+2;
-				  	while(j < blockPair._2.size() && !blockPair._2.get(j).equals("@@@")){
-				  		predicate = blockPair._2.get(j);
-				  		
-				  		if(kb.getProperties().contains(predicate)){
-				  			object = DataFormatter.eliminateDataTypeFromLiteral(blockPair._2.get(j+1));
-				    		if(kb.getFunctions().get(predicate).keySet().size() == 0){
-								cache.addTriple(subject, predicate, object);
-				    		}
-							else{
-								for(String propertyDub : kb.getFunctions().get(predicate).keySet()) {
-									value = Preprocessor.process(object, kb.getFunctions().get(predicate).get(propertyDub));
-									cache.addTriple(subject, propertyDub, value);
-								}
-							}	
-						}	
-				  		j = j + 2;
-				  	}
-				}
-			}
-					 	
-		 	links = this.link(sourceCache, targetCache,links);
-		 	
-		 	return links;
-		}		
-
-		private ArrayList<Tuple2<String,Tuple2<String,Double>>> link(MemoryCache s,
-		 												     MemoryCache t,
-												     		 ArrayList<Tuple2<String,Tuple2<String,Double>>> links){
-	
-		
-			engine.configure(s, t, sourceVar, targetVar);
-		
-			Mapping verificationMapping = engine.execute(plan);
-		
-			Tuple2<String,Double> tp = null;
-			String sourceInfo;
-			String targetInfo;
-			//logger.info("number of links: "+acceptanceMapping.getMap().keySet().size());
-			logger.info("source cache:"+s.size());
-			logger.info("target cache:"+t.size());
-			
-			HashMap<String, Double> targets;
-			double sim;
-			int linksCnt = 0;
-			for(String source: verificationMapping.getMap().keySet()){
-				sourceInfo = s.getInstance(source).toString();
-				targets = verificationMapping.getMap().get(source);
-				links.ensureCapacity(targets.keySet().size());
-				for(String target: targets.keySet()){
-					sim = targets.get(target);
-					if(sim >= thres.getValue()){
-						linksCnt++;
-						targetInfo = t.getInstance(target).toString();
-						tp = new Tuple2<String,Double>(targetInfo,sim);
-						links.add(new Tuple2<String,Tuple2<String,Double>>(sourceInfo,tp));
-					}
-				}
-			}
-			logger.info("number of links "+linksCnt);
-			return links;
-		}
-};
-
-JavaPairRDD<String, Set<Tuple2<String, Double>>> links = blocks.flatMapToPair(linkF)
-			  .aggregateByKey(new HashSet<Tuple2<String,Double>>(), seqFunc, combFunc);
-			  /*.flatMap(new FlatMapFunction<Tuple2<String,Set<Tuple2<String,Double>>>,String>(){
+		JavaPairRDD<String, String> links 
+		= blocks.mapPartitionsToPair(linkF)
+				.aggregateByKey(new HashSet<Tuple2<String,Double>>(), seqFunc, combFunc)
+				.mapToPair(new PairFunction<Tuple2<String,Set<Tuple2<String,Double>>>,String,String>(){
 					private static final long serialVersionUID = 1L;
 					@Override
-					public Iterable<String> call(Tuple2<String, Set<Tuple2<String,Double>>> linkPairs) throws Exception {
-						// TODO Auto-generated method stub
-						String s = linkPairs._1;
-						ArrayList<String> links = new ArrayList<String>();
-						//links.add(s+" "+linkPairs._2);
-						for(Tuple2<String,Double> t:linkPairs._2){
-							
-							links.add(s+" "+OWL.sameAs.getURI() + " "+t);
+					public Tuple2<String, String> call(Tuple2<String, Set<Tuple2<String, Double>>> linkPair) 
+					throws Exception {
+						double maxSim = 0.0;
+						String maxTarget = "";
+						for(Tuple2<String,Double> link : linkPair._2){
+							if(link._2 > maxSim){
+								maxSim = link._2;
+								maxTarget = link._1;
+							}
 						}
-						return links;
+						return new Tuple2<String,String>(linkPair._1,maxTarget);
 					}
-		  		});*/
-return links;
-
-}
-	
-	
+				});
+		return links;
+	}
 }

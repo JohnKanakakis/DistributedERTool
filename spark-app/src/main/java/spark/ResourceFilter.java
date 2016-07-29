@@ -45,98 +45,12 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import scala.Tuple2;
 import spark.io.DataReader;
 
-import spark.model.DatasetManager;
-
 
 public class ResourceFilter {
 	public static Logger logger = LoggerFactory.getLogger(ResourceFilter.class);
 	public final static Property TYPE_PROPERTY = RDF.type;
 	
-    public static void main(String[] args) {
-    	
-    	SparkConf sparkConf = new SparkConf().setAppName("Controller");
-    	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-    	Logger logger = sparkConf.log();
-       
-    	
-    	Configuration conf = new org.apache.hadoop.conf.Configuration();
-        conf.set("textinputformat.record.delimiter", ")\n");
-        
-        JavaRDD<String> data1 = DataReader.run(ctx.newAPIHadoopFile(args[0], 
-        											 TextInputFormat.class, 
-        											 LongWritable.class, 
-        											 Text.class,
-        											 conf));
-        							
-        JavaRDD<String> data2 = DataReader.run(ctx.newAPIHadoopFile(args[0], 
-			 										TextInputFormat.class, 
-	 												LongWritable.class, 
-	 												Text.class,
-	 												conf)); 
-        
-    	ctx.close();
-    }
-    
-    /*public static JavaPairRDD<String, List<String>> run(JavaRDD<String> records,
-    													final DatasetInfo datasetInfo)
-    {
-    	
-    	PairFlatMapFunction<Iterator<String>, String, List<String>> f = 
-    			new PairFlatMapFunction<Iterator<String>,String,List<String>>(){
-					private static final long serialVersionUID = 1L;
-		
-					@Override
-					public Iterable<Tuple2<String, List<String>>> call(Iterator<String> records) 
-					throws Exception {
-						// TODO Auto-generated method stub
-						HashSet<Tuple2<String,List<String>>> resources = 
-								new HashSet<Tuple2<String,List<String>>>();
-						
-						String record;
-						String r_id;
-						String[] r_info;
-						List<String> infoToKeep;
-						
-						String resourceClass = datasetInfo.getTypeClass();
-						HashSet<String> properties = datasetInfo.getProperties();
-						String datasetId = datasetInfo.getId();
-						
-						while(records.hasNext()){
-							record = records.next();
-							r_id = DataFormatter.getResourceId(record);
-							r_info = DataFormatter.getResourceInfo(record);
-							if(belongsToResourceClass(r_info,resourceClass)){
-								infoToKeep = filterResourceInfo(r_info,properties);
-								if(infoToKeep == null) continue;
-								r_id = DatasetManager.addDatasetIdToResource(r_id, datasetId);
-								resources.add(new Tuple2<String,List<String>>(r_id,infoToKeep));
-							}
-						}
-						
-						return resources;
-					}
-    		
-    	};
-    	return records.mapPartitionsToPair(f);
-    }*/
-    
-    /*private static boolean belongsToResourceClass(String[] info, String resourceClass){
-    	
-    	for(int i = 0; i < info.length -1; i = i + 2){
-    		if(info[i].equals(TYPE_PROPERTY.toString())){
-    			if(info[i+1].equals(resourceClass))
-    				return true;
-    			else
-    				return false;
-    		}
-    	}
-    	return false;
-    }*/
-    
     private static boolean hasCorrectProperties(Set<Tuple2<String, String>> resourceProperties, HashSet<String> configProperties){
-    	
-
-    	//boolean hasCorrectProperties = false;
     	
     	HashSet<String> resourcePropertiesNames = new HashSet<String>();
     	for(Tuple2<String, String> po : resourceProperties)
@@ -144,11 +58,7 @@ public class ResourceFilter {
     	
     	if(resourcePropertiesNames.containsAll(configProperties))
     		return true;
-    	/*for(Tuple2<String, String> t : info){
-    		if(properties.contains(t._1)){
-    			hasCorrectProperties = false;
-    		}
-    	}*/
+    	
     	return false;
     }
     
@@ -166,65 +76,7 @@ public class ResourceFilter {
     	return infoTokeep;
     }
     
-    /*private static List<String> filterResourceInfo(String[] info, Set<String> properties){
-    	
-    	
-    	properties.add(TYPE_PROPERTY.toString());
-    
-    	ArrayList<String> infoTokeep = new ArrayList<String>();
-    	for(int i = 0; i < info.length - 1; i = i + 2){
-    		if(properties.contains(info[i])){
-    			infoTokeep.add(info[i]);
-    			infoTokeep.add(info[i+1]);
-    		}
-    	}
-    	if(infoTokeep.size() == 2)
-    		return null;
-    	return infoTokeep;
-    }*/
-    
-    /*public static JavaPairRDD<String, List<String>> run(JavaPairRDD<String, List<String>> data,
-    		                                            final String resourceClass,
-    		                                            final List<String> properties)
-    {
-    	
-    	return data.filter(new Function<Tuple2<String,List<String>>,Boolean>(){
-			private static final long serialVersionUID = 1L;
-
-			@Override
-			public Boolean call(Tuple2<String,List<String>> record) throws Exception {
-				// TODO Auto-generated method stub
-				String p1 = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-				String o1 = "http://xmlns.com/foaf/0.1/Person";
-				
-				String p2 = "http://xmlns.com/foaf/0.1/firstName";
-				String p3 = "http://xmlns.com/foaf/0.1/lastName";
-				
-				List<String> pos = record._2;
-				
-				int index = pos.indexOf(TYPE_PROPERTY.toString());
-				
-				if(index == -1){
-					//System.out.println("malformed pos list"+pos);
-					return false;
-				}
-				
-				if(pos.get(index+1).equals(resourceClass)){
-					if(pos.contains(p2) && pos.contains(p3))
-						return true;
-					else
-						return false;
-				}
-				
-				if(index == pos.size()-1){
-					//System.out.println("malformed pos list"+pos);
-					return false;
-				}
-				return true;
-			}
-		});
-    }*/
-
+   
 	public static JavaPairRDD<String, List<String>> runWithPairs(
 			JavaRDD<Tuple2<String, Set<Tuple2<String, String>>>> records, final Broadcast<byte[]> kbB) {
 		// TODO Auto-generated method stub
@@ -250,7 +102,6 @@ public class ResourceFilter {
 				}
 				if(hasTypeClass){
 					if(hasCorrectProperties(t._2,configProperties)){
-					//logger.info("accepting tuple "+t);
 						return true;
 					};
 				}
@@ -265,14 +116,7 @@ public class ResourceFilter {
 			@Override
 			public Tuple2<String, List<String>> call(Tuple2<String, Set<Tuple2<String, String>>> resource)
 					throws Exception {
-				// TODO Auto-generated method stub
-				/*List<String> infoToKeep = new ArrayList<String>();
-		    	for(Tuple2<String, String> t : resource._2){
-		    		
-		    		infoToKeep.add(t._1);
-		    		infoToKeep.add(t._2);
-		    		
-		    	}*/
+				
 				List<String> infoToKeep = filterResourceInfo(resource._2,configProperties);
 				if(infoToKeep == null){
 					logger.error("accepted false tuple "+resource);
@@ -281,54 +125,10 @@ public class ResourceFilter {
 				String r_id = DatasetManager.addDatasetIdToResource(resource._1, kb.getId());
 				
 				return new Tuple2<String,List<String>>(r_id,infoToKeep);
-				
-				
 			}
 		});
 		return result;
 	}
-
-
-    
-	/*public static JavaPairRDD<String, Set<String>> runWithSets(JavaPairRDD<String, Set<String>> data1,
-			JavaPairRDD<String, Set<String>> data2) {
-		// TODO Auto-generated method stub
-		data1 = PersonFilter.runSet(data1);
-		data2 = PersonFilter.runSet(data2);
-	        
-		//data1 = AddDatasetIdFunc.run(data1, 1);
-		//data2 = AddDatasetIdFunc.run(data2, 2);
-	      
-        data1 = data1.union(data2);
-		return null;
-	}
-
-
-	public static void setResourceType(String string) {
-		// TODO Auto-generated method stub
-		
-	}
-
-
-	public static void setPredicatesToKeep(List<String> predicates) {
-		// TODO Auto-generated method stub
-		
-	}*/
 }
 
-/*class AddDatasetIdFunc {
-	
-	static <V> JavaPairRDD<String, V> run(JavaPairRDD<String, V> data, final Integer datasetID){
-		
-		return data.mapToPair(new PairFunction<Tuple2<String,V>,String,V>(){
-			private static final long serialVersionUID = 1L;
-			@Override
-			public Tuple2<String, V> call(Tuple2<String,V> record) throws Exception {
-				// TODO Auto-generated method stub
-				String subject = record._1;
-				return new Tuple2<String,V>(subject+"_d"+datasetID,record._2);
-			}
-			
-		});
-	}
-};*/
+

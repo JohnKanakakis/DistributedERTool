@@ -35,7 +35,6 @@ import org.slf4j.LoggerFactory;
 
 import scala.Tuple2;
 import spark.io.DataReader;
-import spark.model.DatasetManager;
 
 public class ZipExtractor {
 	public static Logger logger = LoggerFactory.getLogger(ZipExtractor.class);

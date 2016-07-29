@@ -55,6 +55,7 @@ public class GroundTruthSetCreator {
 			
 		}
 		System.out.println("total links "+allLinks.size());
+		
 		sourceOutputModel.write(new FileOutputStream(new File("source.nt")),"N-TRIPLES");
 		targetOutputModel.write(new FileOutputStream(new File("target.nt")),"N-TRIPLES");
 		linksOutputModel.write(new FileOutputStream(new File("links.nt")),"N-TRIPLES");
@@ -90,16 +91,17 @@ public class GroundTruthSetCreator {
 		Property tp_identifier 	= target.createProperty("http://purl.org/dc/terms/identifier");
 		Property tp_name 		= target.createProperty("http://www.w3.org/2000/01/rdf-schema#label");
 		Property tp_year 		= target.createProperty("http://purl.org/dc/terms/issued");
-		Resource foafDocument	= target.createResource("http://xmlns.com/foaf/0.1/Document");
+		Resource foafDocument	= target.createResource("http://swrc.ontoware.org/ontology#Article");
 		
 		String dblpQuery = 
 				"PREFIX foaf: <http://xmlns.com/foaf/0.1/> \n"
 				+"PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> \n"
+				+ "PREFIX swrc: <http://swrc.ontoware.org/ontology#>\n"
 				+"PREFIX dc: <http://purl.org/dc/elements/1.1/> \n"
 				+ "PREFIX dcterms: <http://purl.org/dc/terms/> \n"		
 				+"SELECT DISTINCT ?x ?name ?doi ?year \n"
 				+ "WHERE {\n"
-				+ "?x a foaf:Document.\n"
+				+ "?x a swrc:Article.\n"
 				+ "?x rdfs:label ?name. \n"
 				+ "?x dc:identifier ?doi. \n"
 				+ "?x dcterms:issued ?year. \n"
@@ -275,7 +277,7 @@ public class GroundTruthSetCreator {
 		}
 		//noise
 		ResIterator subjects = source.listSubjects();
-		int totalNoisyResources = 20; 
+		int totalNoisyResources = 1000; 
 		while(subjects.hasNext() && totalNoisyResources > 0){
 			Resource r = subjects.next();
 			if(links.containsKey(r.toString())) continue;
@@ -288,7 +290,7 @@ public class GroundTruthSetCreator {
 		}
 	 
 		subjects = target.listSubjects();
-		totalNoisyResources = 20; 
+		totalNoisyResources = 1000; 
 		while(subjects.hasNext() && totalNoisyResources > 0){
 			Resource r = subjects.next();
 			if(links.containsValue(r.toString())) continue;

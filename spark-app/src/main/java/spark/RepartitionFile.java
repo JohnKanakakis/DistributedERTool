@@ -16,8 +16,8 @@ public class RepartitionFile {
 
 		SparkConf sparkConf = new SparkConf().setAppName("Repartition");
     	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
-    	
-    	ctx.textFile(args[0],500).saveAsTextFile(args[1]);
+    	int partitions = Integer.parseInt(args[2]);
+    	ctx.textFile(args[0]).repartition(partitions).saveAsTextFile(args[1]);
     	ctx.close();
 	}
 

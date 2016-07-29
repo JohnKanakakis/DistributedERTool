@@ -5,6 +5,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -14,6 +17,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
+import java.nio.charset.MalformedInputException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -78,6 +82,31 @@ public class DataTransformerToNT {
 	
 	
 	public static void main(String[] args){
+/*
+		InputStream in;
+		try {
+			in = new FileInputStream(new File("/home/user/Downloads/OA_dump_000054.nt.gz"));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+			
+			String line;
+			ArrayList<String> buffer = new ArrayList<String>(3);
+			while((line = reader.readLine()) != null){
+				System.out.println("line : "+line);
+				Text t = new Text(line);
+				List<String> triple = toTriple(t,buffer);
+				if(triple != null){
+					System.out.println("it should be null");
+				}
+			}
+		} catch (IOException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		} 
+		
+		System.exit(0);*/
+			
+			
+		
 		
 		SparkConf sparkConf = new SparkConf().setAppName("Datatransformer");
     	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
@@ -85,7 +114,12 @@ public class DataTransformerToNT {
 		
 		hdfsConf.set("textinputformat.record.delimiter", "\n");
         
-        //JavaPairRDD<String, Tuple2<String, String>> triples = 
+        //JavaPairRDD<String, Tuple2<String, String>> triples =
+		int partitions = 1000;
+		if(args.length == 3){
+			partitions = Integer.parseInt(args[2]);
+		}
+		 
 		
         JavaPairRDD<LongWritable, Text> data = ctx
         .newAPIHadoopFile(args[0], TextInputFormat.class, LongWritable.class, Text.class,hdfsConf);
@@ -93,12 +127,12 @@ public class DataTransformerToNT {
         
         //data.first();
         
-        data.mapPartitionsToPair(
-        		new PairFlatMapFunction<Iterator<Tuple2<LongWritable,Text>>,String, Tuple2<String,String>>(){
+        data.mapToPair(
+        		new PairFunction<Tuple2<LongWritable,Text>,String, Tuple2<String,String>>(){
 
         			private static final long serialVersionUID = 1L;
-        			
-        			private List<String> toTriple(Text t,List<String> buffer){
+
+        			private  List<String> toTriple(Text t,List<String> buffer){
         				
         				byte[] b = t.getBytes();
         				int pos1 = t.find("<");
@@ -110,13 +144,13 @@ public class DataTransformerToNT {
         				if(pos2 == -1) return null;
         				
         				String s = null;
-						try {
-							s = Text.decode(b, pos1+1, pos2-pos1-1);
-						} catch (CharacterCodingException e) {
-							// TODO Auto-generated catch block
-							//e.printStackTrace();
-							return null;
-						}
+        				try {
+        					s = Text.decode(b, pos1+1, pos2-pos1-1);
+        				} catch (CharacterCodingException e) {
+        					// TODO Auto-generated catch block
+        					//e.printStackTrace();
+        					return null;
+        				}
         				
         				pos1 = t.find("<",pos2+1);
         				if(pos1 == -1) return null;
@@ -125,40 +159,46 @@ public class DataTransformerToNT {
         				if(pos2 == -1) return null;
         				
         				String p = null;
-						try {
-							p = Text.decode(b, pos1+1, pos2-pos1-1);
-						} catch (CharacterCodingException e) {
-							
-							return null;
-						}
+        				try {
+        					p = Text.decode(b, pos1+1, pos2-pos1-1);
+        				} catch (CharacterCodingException e) {
+        					
+        					return null;
+        				}
         				
         				
-						String o = null;
-						pos1 = pos2;
-						while(t.charAt(pos1) != 9 && t.charAt(pos1) != ' ' && pos1 < t.getLength()){// 9 equals to tab
-							pos1++;
-						}
-						pos1++;
-						
-						if(t.charAt(pos1) == 34){// 34 equals to "\""
-							try {
-								o = Text.decode(b, pos1,t.getLength()-pos1-2);
-							} catch (CharacterCodingException e) {
-								return null;
-							}
-							
-						}else if (t.charAt(pos1) == 60){// 60 equals to "<"
-							//object is URI
-							pos2 = t.find(">",pos1+1);
-							try {
-								o = Text.decode(b, pos1+1,pos2 - pos1 -1);
-							} catch (CharacterCodingException e) {
-								return null;
-							}
-							
-						}else{
-							return null;
-						}
+        				String o = null;
+        				pos1 = pos2;
+        				while(t.charAt(pos1) != 9 && t.charAt(pos1) != ' ' && pos1 < t.getLength()){// 9 equals to tab
+        					pos1++;
+        				}
+        				pos1++;
+        				
+        				if(pos1 >= t.getLength())
+        					return null;
+        				
+        				if(t.charAt(pos1) == 34){// 34 equals to "\""
+        					try {
+        						o = Text.decode(b, pos1,t.getLength()-pos1-2);
+        					} catch (CharacterCodingException e) {
+        						return null;
+        					}
+        					
+        				}else if (t.charAt(pos1) == 60){// 60 equals to "<"
+        					//object is URI
+        					pos2 = t.find(">",pos1+1);
+        					if(pos2 == -1){
+        						return null;
+        					}
+        					try {
+        						o = Text.decode(b, pos1+1,pos2 - pos1 -1);
+        					} catch (CharacterCodingException e) {
+        						return null;
+        					}
+        					
+        				}else{
+        					return null;
+        				}
         				
         				if(s != null && p != null && o != null){
         					buffer.add(s);
@@ -170,49 +210,67 @@ public class DataTransformerToNT {
         			}
         			
         			@Override
-        			public Iterable<Tuple2<String, Tuple2<String, String>>> call(Iterator<Tuple2<LongWritable,Text>> records) throws Exception {
+        			public Tuple2<String, Tuple2<String, String>> call(Tuple2<LongWritable,Text> record) throws Exception {
         				// TODO Auto-generated method stub
-        				ArrayList<Tuple2<String,Tuple2<String,String>>> r = 
-        						new ArrayList<Tuple2<String,Tuple2<String,String>>>();
-        				Text record;
+        				/*ArrayList<Tuple2<String,Tuple2<String,String>>> r = 
+        						new ArrayList<Tuple2<String,Tuple2<String,String>>>();*/
+        				//Text record;
         				List<String> triple;
         				ArrayList<String> buffer = new ArrayList<String>(3);
-        				while(records.hasNext()){
-        					record = records.next()._2;
+        				//while(records.hasNext()){
+        					//record = records.next()._2;
+        					
         					//logger.info("record:"+record);
         					//if(record.find("<") != 0) continue;
-        					triple = toTriple(record, buffer);
+        					triple = toTriple(record._2, buffer);
         					if(triple == null){
-        						logger.error("invalid triple "+record.charAt(0));
+        						logger.error("invalid triple "+record._2.charAt(0));
         						//System.exit(0);
-        						buffer.clear();
-        						continue;
-        						//return null;
+        						//buffer.clear();
+        						//continue;
+        						return new Tuple2<String,Tuple2<String,String>>("",
+            							new Tuple2<String,String>("",""));
         					}
         					if(triple.size() != 3){
-        						logger.error("malformed triple "+record);
+        						logger.error("malformed triple "+record._2);
         						//System.exit(0);
-        						buffer.clear();
-        						continue;
+        						//buffer.clear();
+        						return new Tuple2<String,Tuple2<String,String>>("",
+            							new Tuple2<String,String>("",""));
+        						//continue;
         					}
         					
-        					r.add(new Tuple2<String,Tuple2<String,String>>(triple.get(0),
-        							new Tuple2<String,String>(triple.get(1),triple.get(2))));
-        					buffer.clear();
-        				}
+        					/*r.add(new Tuple2<String,Tuple2<String,String>>(triple.get(0),
+        							new Tuple2<String,String>(triple.get(1),triple.get(2))));*/
+        					//buffer.clear();
+        				//}
         				
-        				return r;
+        				return new Tuple2<String,Tuple2<String,String>>(triple.get(0),
+    							new Tuple2<String,String>(triple.get(1),triple.get(2)));
         			}
            
                 })
-        .aggregateByKey(new HashSet<Tuple2<String,String>>(),2000, 
+        .filter(new Function<Tuple2<String,Tuple2<String,String>>,Boolean>(){
+
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public Boolean call(Tuple2<String, Tuple2<String, String>> resource) throws Exception {
+				// TODO Auto-generated method stub
+				return !resource._1.equals("");
+			}
+        })
+        .aggregateByKey(new HashSet<Tuple2<String,String>>(), partitions,
 	  		  	  new Function2<Set<Tuple2<String,String>>,Tuple2<String,String>,Set<Tuple2<String,String>>>(){
 						private static final long serialVersionUID = 1L;
 						@Override
 						public Set<Tuple2<String,String>> call(Set<Tuple2<String,String>> set,Tuple2<String,String> po) 
 						throws Exception {
 							// TODO Auto-generated method stub
-							set.add(po);
+							if(po != null){
+								set.add(po);
+							}
+							
 							return set;
 						}
 				  }, 
@@ -233,7 +291,12 @@ public class DataTransformerToNT {
 	}
 	
 	
+	
 	public static void main1(String[] args) {
+		
+		
+		
+		
 		SparkConf sparkConf = new SparkConf().setAppName("Datatransformer");
     	JavaSparkContext ctx = new JavaSparkContext(sparkConf);
     	
@@ -395,52 +458,52 @@ public class DataTransformerToNT {
 				return out;
 			}
     	})*/
-    	ctx.binaryFiles(args[0],1600)
-    	.persist(StorageLevel.MEMORY_AND_DISK_SER())
-    	
-
-    	
-    	
-    	.mapPartitionsToPair(new PairFlatMapFunction<Iterator<Tuple2<String,PortableDataStream>>,String,Tuple2<String,String>>(){
+    	ctx.binaryFiles(args[0])
+    	.flatMapToPair(new PairFlatMapFunction<Tuple2<String,PortableDataStream>,String,Tuple2<String,String>>(){
 			private static final long serialVersionUID = 1L;
 
 			@Override
-			public Iterable<Tuple2<String, Tuple2<String,String>>> call(Iterator<Tuple2<String,PortableDataStream>> files) throws Exception {
+			public Iterable<Tuple2<String, Tuple2<String,String>>> call(Tuple2<String,PortableDataStream> file) throws Exception {
 				// TODO Auto-generated method stub
 				CustomNTriplesParser parser = new CustomNTriplesParser();
 				
 				ObjectBigArrayBigList<Tuple2<String,Tuple2<String,String>>> result = 
 						new ObjectBigArrayBigList<Tuple2<String,Tuple2<String,String>>>();
 				
-				Tuple2<String, PortableDataStream> file;
+				//Tuple2<String, PortableDataStream> file;
 				
 				DataInputStream stream;
 				
-				while(files.hasNext()){
-					file = files.next();
+				//while(files.hasNext()){
+					//file = files.next();
 					
+					if(file._1.contains("54")|| file._1.contains("55")||file._1.contains("107")||file._1.contains("108"))
+						return result;
 					
 					stream = file._2.open();//new ByteArrayInputStream(file._2.toByteArray());
+					//GZIPInputStream zis = new GZIPInputStream(stream);
+					
 					logger.info("parsing file "+file._1);
 					try{
 						parser.parse(stream, "");
 					}catch (RDFParseException e){
+						//zis.close();
 						stream.close();
 						stream = null;
 						return result;
 					}
-				
+					//zis.close();
 					stream.close();
 					stream = null;
 					logger.info("finished parsing file "+file._1);
 					result.addAll(parser.getResult());
-				}
-				parser = null;
+				//}
+				//parser = null;
 				return result;
 			}
         })
-    	.persist(StorageLevel.MEMORY_AND_DISK_SER())
-    	.aggregateByKey(new HashSet<Tuple2<String,String>>(), 
+    	//.persist(StorageLevel.MEMORY_AND_DISK_SER())
+    	.aggregateByKey(new HashSet<Tuple2<String,String>>(),500, 
 			  		  	  new Function2<Set<Tuple2<String,String>>,Tuple2<String,String>,Set<Tuple2<String,String>>>(){
 								private static final long serialVersionUID = 1L;
 								@Override
