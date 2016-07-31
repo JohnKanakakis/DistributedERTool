@@ -24,29 +24,38 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.storage.StorageLevel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import scala.Tuple2;
 import spark.statistics.BlockStatistics;
 
+/**
+ * The Statistics class describes the metrics involved in the purging process 
+ * @author John Kanakakis
+ * 
+ *
+ */
 class Statistics implements Serializable{
 
 	private static final long serialVersionUID = 1L;
 	int optimalBlockSize;
 	BigInteger blocksBeforePurging;
 	BigInteger blocksAfterPurging;
-	double durationOfLinking;
 	BigInteger defaultNumberOfComparisons; 
 	BigInteger numberOfComparisonsWithoutPurging; 
 	BigInteger numberOfComparisonsWithPurging; 
 }
 
+/**
+ * The Controller class is the main class of the application. 
+ * It coordinates the SPARK actions and transformations needed for the linking of the two data sets. 
+ * @author John Kanakakis
+ *
+ */
 public class Controller {
 
 	private static String STATS_FILE;
@@ -57,18 +66,39 @@ public class Controller {
 	static boolean statisticsEnabled;
 	static boolean purging_enabled;
 	static boolean linkingEnabled;
+	
 	public static void main(String[] args) {
-
+		
+		/*
+		 * user defines if statistics will be collected during execution
+		 */
 		statisticsEnabled = Boolean.parseBoolean(args[3]);
+		
+		/*
+		 * user defines if purging will be enabled during execution
+		 */
 		purging_enabled = Boolean.parseBoolean(args[4]);
+		
+		/*
+		 * user defines if linking will take place 
+		 * (it can be omitted when the user only wants the collection of statistics)
+		 */
 		linkingEnabled = Boolean.parseBoolean(args[5]);
+		
 		if(statisticsEnabled)
 			statistics = new Statistics();
 
-
+		
+		
+		/*
+		 * the HDFS file where statistics will be written 
+		 */
 		STATS_FILE = args[2];
 		Utils.deleteHDFSFile(STATS_FILE);
 
+		/*
+		 * reading and validation of LIMES configuration files
+		 */
 		InputStream configFile = Utils.getHDFSFile(args[0]);
 		InputStream dtdFile = Utils.getHDFSFile(args[1]);
 
@@ -80,12 +110,17 @@ public class Controller {
 		if(config == null){
 			System.exit(0);
 		}
+		
+		
 		if(linkingEnabled){
 			Utils.deleteHDFSFile(config.getAcceptanceFile());
 			Utils.deleteHDFSFile(config.getAcceptanceFile()+".ser");
 		}
 
 
+		/*
+		 * LIMES: creation of the execution plan
+		 */
 		Rewriter rw = RewriterFactory.getRewriter("Default");
 		LinkSpecification ls = new LinkSpecification(config.getMetricExpression(), config.getVerificationThreshold());
 		LinkSpecification rwLs = rw.rewrite(ls);
@@ -93,20 +128,19 @@ public class Controller {
 		assert planner != null;
 		NestedPlan plan = planner.plan(rwLs);
 
+		/*
+		 * serialization of the plan, configuration and KBInfo java objects 
+		 * in order to be broadcasted via SPARK from the driver 
+		 * to the executors 
+		 */
+		
 		byte[] planBinary = Utils.serialize(plan);
 		byte[] configBinary = Utils.serialize(config);
 		byte[] skbBinary = Utils.serialize(config.getSourceInfo());
 		byte[] tkbBinary = Utils.serialize(config.getTargetInfo());
 
-		//String[] configParams = new String[2];
-		// configParams[0] = config.getSourceInfo().getVar();
-		//configParams[1] = config.getTargetInfo().getVar();
-
-		// double thres = config.getAcceptanceThreshold();
-
-
-
-
+		
+		
 		sparkConf = new SparkConf().setAppName("Controller");
 
 		ctx = new JavaSparkContext(sparkConf);
@@ -115,12 +149,14 @@ public class Controller {
 		Broadcast<byte[]> planBinary_B = ctx.broadcast(planBinary);
 		Broadcast<byte[]> configBinary_B = ctx.broadcast(configBinary);
 
-		//Broadcast<String[]> c = ctx.broadcast(configParams);
-		//Broadcast<Double> t = ctx.broadcast(thres);
+		
 		Broadcast<byte[]> skb = ctx.broadcast(skbBinary);
 		Broadcast<byte[]> tkb = ctx.broadcast(tkbBinary);
 
 
+		/*
+		 * reading of source and target data sets
+		 */
 		JavaRDD<Tuple2<String,Set<Tuple2<String,String>>>> records1 = 
 				ctx.objectFile(config.getSourceInfo().getEndpoint());
 
@@ -128,14 +164,18 @@ public class Controller {
 				ctx.objectFile(config.getTargetInfo().getEndpoint());
 
 
+		/*
+		 * filtering of entities and properties according to 
+		 * the LIMES .xml configuration file
+		 */
 		JavaPairRDD<String, List<String>> resources1 = 
-				ResourceFilter.runWithPairs(records1,skb)
+				ResourceFilter.run(records1,skb)
 				.setName("resource1");
-		//.persist(StorageLevel.MEMORY_ONLY_SER());
+		
 		JavaPairRDD<String, List<String>> resources2 = 
-				ResourceFilter.runWithPairs(records2,tkb)
+				ResourceFilter.run(records2,tkb)
 				.setName("resource2");
-		//.persist(StorageLevel.MEMORY_ONLY_SER());
+		
 
 
 		JavaPairRDD<String, List<String>> resources = 
@@ -146,12 +186,19 @@ public class Controller {
 
 
 
-
+		/*
+		 * creation of token pairs in the form (token, r_id)
+		 */
 		JavaPairRDD<String, String> tokenPairs = 
 				IndexCreator.getTokenPairs(resources,skb,tkb);
-		//.persist(StorageLevel.MEMORY_ONLY_SER());
+		
 
 
+		/*
+		 * creation of blockSizesRDD.
+		 * It represents the size of each block
+		 * (block_key, size)
+		 */
 		JavaPairRDD<String, Integer> blockSizesRDD = 
 				getBlocks(tokenPairs)
 				.setName("blockSizesRDD")
@@ -164,6 +211,9 @@ public class Controller {
 					getNumberOfComparisons(tokenPairs,skb,tkb);
 		}
 
+		/*
+		 * purging
+		 */
 
 		final int optimalSize = BlockStatistics.getOptimalBlockSize(blockSizesRDD);
 
@@ -173,6 +223,10 @@ public class Controller {
 
 
 
+		/*
+		 * blockSizes are purged 
+		 */
+		
 		blockSizesRDD = blockSizesRDD.filter(new Function<Tuple2<String,Integer>,Boolean>(){
 			private static final long serialVersionUID = 1L;
 
@@ -185,12 +239,18 @@ public class Controller {
 		});
 
 
+		/*
+		 * blockSizesRDD is locally collected and distributed as a HashSet
+		 */
 		HashSet<String> localPurgedBlockKeysSet = new HashSet<String>(blockSizesRDD.keys().collect());
 
 		final Broadcast<HashSet<String>> broadcastedPurgedBlockKeys = 
 				ctx.broadcast(localPurgedBlockKeysSet);
 
 
+		/*
+		 * if purging is enabled the tokenPairs RDD is purged
+		 */
 		if(purging_enabled){
 			tokenPairs 
 			= tokenPairs.filter(new Function<Tuple2<String,String>,Boolean>(){
@@ -209,14 +269,25 @@ public class Controller {
 			statistics.numberOfComparisonsWithPurging = getNumberOfComparisons(tokenPairs,skb,tkb);
 		}
 
+		
+		/*
+		 * resourceIndex RDD is created from the tokenPairs RDD
+		 */
 		JavaPairRDD<String, Tuple2<String, String>> resourceIndex = IndexCreator.createIndex(tokenPairs);
 
 
-
+		/*
+		 * blocks RDD is created from the resourceIndex RDD and the resources RDD
+		 */
 		JavaPairRDD<String, Set<List<String>>> blocks = BlocksCreator.createBlocks(resourceIndex,resources);
 
 		JavaPairRDD<String, String> links = null;
+		
+		
 		if(linkingEnabled){
+			/*
+			 * At this point the LIMES is used to generate the links
+			 */
 			links = Linker.run(blocks, planBinary_B, configBinary_B);
 			links.persist(StorageLevel.MEMORY_ONLY_SER());
 
@@ -251,6 +322,11 @@ public class Controller {
 		ctx.close();
 	}
 
+	
+	/**
+	 * @param tokenPairs (block_key, r_id)
+	 * @return BlockSizes RDD in the form (block_key, size)
+	 */
 	private static JavaPairRDD<String, Integer> getBlocks(JavaPairRDD<String,String> tokenPairs){
 
 		Function<String, Integer> createCombiner 
@@ -289,6 +365,14 @@ public class Controller {
 		return blockSizesRDD;
 
 	}
+	
+	/**
+	 * computes the total number of comparisons 
+	 * @param tokenPairs : RDD in the form (block_key, r_id)
+	 * @param skb : source KBInfo 
+	 * @param tkb : target KBInfo 
+	 * @return
+	 */
 	private static BigInteger getNumberOfComparisons(JavaPairRDD<String, String> tokenPairs,
 			final Broadcast<byte[]> skb,
 			final Broadcast<byte[]> tkb) {

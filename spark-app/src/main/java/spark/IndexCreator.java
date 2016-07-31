@@ -1,52 +1,32 @@
 package spark;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.text.Collator;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
 import org.aksw.limes.core.io.config.KBInfo;
-import org.aksw.limes.core.io.preprocessing.Preprocessor;
-import org.apache.commons.codec.language.Soundex;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.spark.Accumulator;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import it.unimi.dsi.fastutil.longs.LongComparator;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
-import it.unimi.dsi.fastutil.objects.ObjectSortedSet;
 import scala.Tuple2;
-import spark.io.DataReader;
+import spark.help.DataFormatter;
 
+/**
+ * IndexCreator generates the tokenPairs RDD and the resourceIndex RDD
+ * @author John Kanakakis
+ *
+ */
 public class IndexCreator {
 
 	
 	public static Logger logger = LoggerFactory.getLogger(IndexCreator.class);
 	
-	public static void main(String args[]){
+	/*public static void main(String args[]){
 		String s1 = "A Java based tool for the 0-9 design of-class-ification microarrays. ";
 		String s2 = "A Java based tool for the design of classification microarrays ";
 		
@@ -61,8 +41,14 @@ public class IndexCreator {
 			tokens[i] = tokens[i].replaceAll("[^A-Za-z0-9 ]", " ").trim().toLowerCase();
 			System.out.println(tokens[i]+"#");
 		}
-	}
+	}*/
 
+	/**
+	 * @param resources : RDD in the form of (r_id, [info])
+	 * @param skbB : source KBInfo
+	 * @param tkbB : target KBInfo
+	 * @return tokenPairs in the form of (token, r_id)
+	 */
 	public static JavaPairRDD<String, String> getTokenPairs(JavaPairRDD<String,List<String>> resources,
 																  final Broadcast<byte[]> skbB,
 																  final Broadcast<byte[]> tkbB)
@@ -136,22 +122,12 @@ public class IndexCreator {
 	}
 	
 	
-	public static JavaPairRDD<String, Tuple2<String,String>> run(JavaPairRDD<String, List<String>> resources,
-																	 final Broadcast<byte[]> skbB,
-															 		 final Broadcast<byte[]> tkbB) {
-		return 
-		getTokenPairs(resources,skbB,tkbB)
-		.mapToPair(new PairFunction<Tuple2<String,String>,String,Tuple2<String,String>>(){
-			private static final long serialVersionUID = 1L;
-			@Override
-			public Tuple2<String, Tuple2<String, String>> call(Tuple2<String, String> tokenPair) 
-			throws Exception {
-				return new Tuple2<String, Tuple2<String, String>>(tokenPair._2,tokenPair);
-			}
-		});
-		
-	}
+	
 
+	/**
+	 * @param tokenPairs RDD in the form of (block_key, r_id)
+	 * @return the resourceIndex RDD in the form of (r_id, (block_key, r_id) )
+	 */
 	public static JavaPairRDD<String, Tuple2<String, String>> createIndex(JavaPairRDD<String, String> tokenPairs) {
 		JavaPairRDD<String, Tuple2<String, String>> index 
 		= tokenPairs.mapToPair(new PairFunction<Tuple2<String,String>,String,Tuple2<String,String>>(){

@@ -5,7 +5,7 @@
  * which accompanies this distribution, and is available at
  * http://www.eclipse.org/org/documents/edl-v10.php.
  *******************************************************************************/
-package spark.io;
+package spark.help;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,9 +19,6 @@ import java.util.HashSet;
 import org.apache.commons.io.input.BOMInputStream;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
-import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.rio.ParseErrorListener;
-import org.eclipse.rdf4j.rio.ParserConfig;
 import org.eclipse.rdf4j.rio.RDFFormat;
 import org.eclipse.rdf4j.rio.RDFHandlerException;
 import org.eclipse.rdf4j.rio.RDFParseException;
@@ -32,7 +29,6 @@ import org.eclipse.rdf4j.rio.ntriples.NTriplesUtil;
 
 import it.unimi.dsi.fastutil.objects.ObjectBigArrayBigList;
 import scala.Tuple2;
-import spark.DataFormatter;
 
 public class CustomNTriplesParser extends AbstractRDFParser {
 

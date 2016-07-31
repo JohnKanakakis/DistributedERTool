@@ -1,23 +1,23 @@
 package spark;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import scala.Tuple2;
 
 
+/**
+ * BlocksCreator generates the enriched blocks used for the linking task
+ * @author John Kanakakis
+ *
+ */
 public class BlocksCreator {
 
 	
@@ -25,6 +25,12 @@ public class BlocksCreator {
 	
 	
 	
+	/**
+	 * creates blocks from the join of the resources RDD and the resourceIndex RDD
+	 * @param resourceIndex : (r_id,(block_key, r_id) )
+	 * @param resources : (r_id, [info])
+	 * @return blocks in the form of (block_key, { [r_id1|info1], [r_id2|info2], ..., [r_idN|infoN]})
+	 */
 	public static JavaPairRDD<String, Set<List<String>>> createBlocks( JavaPairRDD<String, Tuple2<String, String>> resourceIndex,
 																		    JavaPairRDD<String, List<String>> resources) {
 		

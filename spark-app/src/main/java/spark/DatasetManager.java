@@ -1,8 +1,14 @@
 package spark;
 
 import java.io.Serializable;
-import java.util.HashMap;
 
+/**
+ * The DatasetManager is used to add a data set stamp to each resource URI
+ * so as to distinguish between source and target URIs.
+ * 
+ * @author John Kanakakis
+ *
+ */
 public class DatasetManager implements Serializable{
 
 	/**
@@ -21,11 +27,7 @@ public class DatasetManager implements Serializable{
 		return dm;
 	}
 	
-	/*public void addDatasetInfo(DatasetInfo datasetInfo){
-		datasets.put(datasetInfo.getId(), datasetInfo);
-	}
-	*/
-
+	
 	
 	public static String addDatasetIdToResource(String resource, String datasetId){
 		

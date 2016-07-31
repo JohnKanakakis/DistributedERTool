@@ -2,37 +2,15 @@ package spark;
 
 
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.aksw.limes.core.io.config.KBInfo;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.spark.Accumulator;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
-import org.apache.spark.api.java.function.Function3;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
@@ -41,11 +19,14 @@ import org.slf4j.LoggerFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.vocabulary.RDF;
 
-import it.unimi.dsi.fastutil.objects.ObjectOpenHashBigSet;
 import scala.Tuple2;
-import spark.io.DataReader;
 
 
+/**
+ * The ResourceFilter filters the data according to the LIMES configuration
+ * @author John Kanakakis
+ *
+ */
 public class ResourceFilter {
 	public static Logger logger = LoggerFactory.getLogger(ResourceFilter.class);
 	public final static Property TYPE_PROPERTY = RDF.type;
@@ -77,7 +58,14 @@ public class ResourceFilter {
     }
     
    
-	public static JavaPairRDD<String, List<String>> runWithPairs(
+	/**
+	 * @param records : the input data RDD
+	 * @param kbB : 
+	 * the broadcasted KBInfo object which holds the information of
+	 * the entities (type class, properties etc) involved in the linking task 
+	 * @return the filtered data in the form of (r_id, [info]) 
+	 */
+	public static JavaPairRDD<String, List<String>> run(
 			JavaRDD<Tuple2<String, Set<Tuple2<String, String>>>> records, final Broadcast<byte[]> kbB) {
 		// TODO Auto-generated method stub
 		final KBInfo kb = (KBInfo)Utils.deserialize(kbB.getValue());

@@ -1,77 +1,35 @@
 package spark;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInput;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-
-import org.aksw.limes.core.execution.engine.ExecutionEngine;
-import org.aksw.limes.core.execution.engine.ExecutionEngineFactory;
 import org.aksw.limes.core.execution.engine.SimpleExecutionEngine;
 import org.aksw.limes.core.execution.planning.plan.NestedPlan;
-import org.aksw.limes.core.execution.planning.planner.ExecutionPlannerFactory;
-import org.aksw.limes.core.execution.planning.planner.IPlanner;
-import org.aksw.limes.core.execution.rewriter.Rewriter;
-import org.aksw.limes.core.execution.rewriter.RewriterFactory;
-import org.aksw.limes.core.io.cache.HybridCache;
 import org.aksw.limes.core.io.cache.MemoryCache;
 import org.aksw.limes.core.io.config.KBInfo;
-import org.aksw.limes.core.io.config.reader.xml.XMLConfigurationReader;
-import org.aksw.limes.core.io.ls.LinkSpecification;
 import org.aksw.limes.core.io.mapping.Mapping;
-import org.aksw.limes.core.io.mapping.MemoryMapping;
 import org.aksw.limes.core.io.preprocessing.Preprocessor;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.io.output.ByteArrayOutputStream;
-import org.apache.commons.lang3.SerializationUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
-import org.apache.spark.Accumulator;
-import org.apache.spark.SparkConf;
-import org.apache.spark.SparkFiles;
 import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.hp.hpl.jena.vocabulary.OWL;
-
 import scala.Tuple2;
-import spark.io.DataReader;
+import spark.help.DataFormatter;
 
 
+/**
+ * The Linker employs the LIMES Framework to generate the links
+ * @author John Kanakakis
+ *
+ */
 public class Linker {
 	
 	
@@ -79,6 +37,12 @@ public class Linker {
 	
 	
 
+	/**
+	 * @param blocks RDD in the form of (block_key, {[r_id1|info1], [r_id2|info2], ..., [r_idN|infoN]})
+	 * @param planBinary_B : the broadcasted execution plan of LIMES
+	 * @param configBinary_B : the broadcasted configuration of LIMES
+	 * @return links RDD in the form of (source r_id, target r_id)
+	 */
 	public static JavaPairRDD<String, String> run(JavaPairRDD<String, Set<List<String>>> blocks, 
 			               			  final Broadcast<byte[]> planBinary_B,
 			               			  final Broadcast<byte[]> configBinary_B) {

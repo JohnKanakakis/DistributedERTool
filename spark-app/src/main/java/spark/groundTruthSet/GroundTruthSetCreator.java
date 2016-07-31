@@ -3,41 +3,31 @@ package spark.groundTruthSet;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
-import java.nio.channels.Selector;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
-import java.util.TreeSet;
 
-import org.aksw.limes.core.io.query.ModelRegistry;
-import org.apache.commons.io.FileUtils;
-
-import com.hp.hpl.jena.graph.Triple;
 import com.hp.hpl.jena.query.QueryExecution;
 import com.hp.hpl.jena.query.QueryExecutionFactory;
 import com.hp.hpl.jena.query.QuerySolution;
 import com.hp.hpl.jena.query.ResultSet;
-import com.hp.hpl.jena.query.Syntax;
 import com.hp.hpl.jena.rdf.model.Model;
 import com.hp.hpl.jena.rdf.model.ModelFactory;
 import com.hp.hpl.jena.rdf.model.Property;
 import com.hp.hpl.jena.rdf.model.ResIterator;
 import com.hp.hpl.jena.rdf.model.Resource;
-import com.hp.hpl.jena.rdf.model.Statement;
-import com.hp.hpl.jena.rdf.model.StmtIterator;
 import com.hp.hpl.jena.vocabulary.OWL;
 import com.hp.hpl.jena.vocabulary.RDF;
 
-import spark.Utils;
-
+/**
+ * The GroundTruthSetCreator generates the source, target and links data sets 
+ * which represent the ground truth sets between the OpenAIRE and DBLP data sets. 
+ * @author John Kanakakis
+ *
+ */
 public class GroundTruthSetCreator {
 
-	
-	
 	static Model sourceOutputModel = ModelFactory.createDefaultModel();
 	static Model targetOutputModel = ModelFactory.createDefaultModel();
 	static Model linksOutputModel = ModelFactory.createDefaultModel();
@@ -59,21 +49,6 @@ public class GroundTruthSetCreator {
 		sourceOutputModel.write(new FileOutputStream(new File("source.nt")),"N-TRIPLES");
 		targetOutputModel.write(new FileOutputStream(new File("target.nt")),"N-TRIPLES");
 		linksOutputModel.write(new FileOutputStream(new File("links.nt")),"N-TRIPLES");
-		//byte[] ser = Utils.serialize(allLinks);
-		
-		/*try {
-			//FileUtils.writeByteArrayToFile(new File("links.ser"),ser);
-		
-			HashMap<String,String> map = (HashMap<String, String>) Utils.deserialize(FileUtils.readFileToByteArray(new File("links.ser")));
-			System.out.println(map);
-			System.out.println(map.size());
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}*/
-		
-		
 	}
 
 	
@@ -109,29 +84,7 @@ public class GroundTruthSetCreator {
 				+ "FILTER(?year = \""+year+"\"). \n"
 				+ "}\n";
 		
-		/*String openaireQuery1 = "select distinct ?x ?i ?name "
-				+ "where { "
-				+ "?x a <http://www.eurocris.org/ontologies/cerif/1.3#ResultEntity>. "
-				+ "?x <http://purl.org/dc/terms/identifier> ?i. "
-				+ "?x <http://www.eurocris.org/ontologies/cerif/1.3#name> ?name. "
-				+ "FILTER(!regex(?i,\"[A-Z]\",\"i\"))"
-				+ "} "
-				+ "#LIMIT 1000";*/
 		
-		/*String openaireQuery2 = "construct {"
-				+ "?x  a <http://www.eurocris.org/ontologies/cerif/1.3#ResultEntity>."
-				+ "?x <http://www.eurocris.org/ontologies/cerif/1.3#name> ?name."
-				+ "?x <http://purl.org/dc/terms/identifier> ?doi."
-				+ "?x <http://lod.openaire.eu/vocab/year> ?year. \n"
-				+ "} where { \n"
-				+ "?x a <http://www.eurocris.org/ontologies/cerif/1.3#ResultEntity>. \n"
-				+ "?x <http://purl.org/dc/terms/identifier> ?i. \n"
-				+ "?x <http://www.eurocris.org/ontologies/cerif/1.3#name> ?name. \n"
-				+ "?x <http://lod.openaire.eu/vocab/year> ?year.\n"
-				+ "?x <http://lod.openaire.eu/vocab/resultType> \"publication\".\n"
-				+ "FILTER(!regex(?i,\"[A-Z]\",\"i\") && ?year = \""+year+"\").\n"
-				+ "BIND(replace(?i,' ','-') as ?doi)"
-				+ "}\n";*/
 		String openaireQuery2 = "select distinct ?x ?name ?year (replace(?i,' ','-') as ?doi)"
 				+ "where { \n"
 				+ "?x a <http://www.eurocris.org/ontologies/cerif/1.3#ResultEntity>. \n"
