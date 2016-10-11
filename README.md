@@ -1,6 +1,8 @@
 ## DistributedERTool
 #Overview
 
+This application achieves the distributed interlinking of two datasets by incorporating the Spark Framework and the [LIMES](http://aksw.org/Projects/LIMES.html) tool. It employs the concept of block purging so as to boost performance. 
+
 #Installation
 
 1.Install the limes-core.jar to the local maven repository
