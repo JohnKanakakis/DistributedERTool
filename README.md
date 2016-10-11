@@ -3,11 +3,11 @@
 
 #Installation
 
-1. Install the limes-core.jar to the local maven repository
+1.Install the limes-core.jar to the local maven repository
 
 `mvn install:install-file -Dfile={path/to/limes-core.jar} -DgroupId=org.aksw.limes.core -DartifactId=limes-core -Dversion=1.1.0-SNAPSHOT -Dpackaging=jar`
 
-2. Build the spark application 
+2.Build the spark application 
 
 `mvn clean package` 
 
