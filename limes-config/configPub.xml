@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE LIMES SYSTEM "limes.dtd">
+<LIMES>
+	<PREFIX>
+		<NAMESPACE>http://www.w3.org/1999/02/22-rdf-syntax-ns#</NAMESPACE>
+		<LABEL>rdf</LABEL>
+	</PREFIX>
+	<PREFIX>
+		<NAMESPACE>http://www.w3.org/2000/01/rdf-schema#</NAMESPACE>
+		<LABEL>rdfs</LABEL>
+	</PREFIX>
+	<SOURCE>
+		<ID>source1</ID>
+		<ENDPOINT>/user/kanakakis/groundTruth/sourceNT</ENDPOINT>
+		<VAR>?x</VAR>
+		<PAGESIZE>100</PAGESIZE>
+		<RESTRICTION>?x rdf:type http://www.eurocris.org/ontologies/cerif/1.3#ResultEntity</RESTRICTION>
+		<PROPERTY>http://lod.openaire.eu/vocab/year RENAME Year</PROPERTY> 
+		<PROPERTY>http://www.eurocris.org/ontologies/cerif/1.3#name AS lowercase->regexreplace("[^A-Za-z0-9]"," ") RENAME publicationName</PROPERTY>
+	</SOURCE>
+	<TARGET>
+		<ID>source2</ID>
+		<ENDPOINT>/user/kanakakis/groundTruth/targetNT</ENDPOINT>
+		<VAR>?y</VAR>
+		<PAGESIZE>100</PAGESIZE>
+		<RESTRICTION>?y rdf:type http://swrc.ontoware.org/ontology#Article</RESTRICTION>
+		<PROPERTY>http://purl.org/dc/terms/issued RENAME Year</PROPERTY> 
+		<PROPERTY>http://www.w3.org/2000/01/rdf-schema#label AS lowercase->regexreplace("[^A-Za-z0-9]"," ") RENAME articleName</PROPERTY>
+		
+	</TARGET>
+	<METRIC>AND(jaro(x.publicationName,y.articleName)|0.8,jaro(x.Year,y.Year)|1.0)</METRIC>
+	<ACCEPTANCE>
+		<THRESHOLD>0.8</THRESHOLD>
+		<FILE>/user/kanakakis/groundTruth/accepted_links_0.8_no_purge</FILE>
+		<RELATION>owl:sameAs</RELATION>
+	</ACCEPTANCE>
+	<REVIEW>
+		<THRESHOLD>0.8</THRESHOLD>
+		<FILE>/user/kanakakis/groundTruth/verified_links_0.8</FILE>
+		<RELATION>owl:sameAs</RELATION>
+	</REVIEW>
+	<EXECUTION>Default</EXECUTION>
+	<OUTPUT>TTL</OUTPUT>
+</LIMES>
