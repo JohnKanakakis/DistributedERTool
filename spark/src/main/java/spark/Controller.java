@@ -26,6 +26,7 @@ import scala.Tuple2;
 import spark.blockProcessing.BlockPurging;
 
 
+/*** my comment from git_eclipse ***/
 
 /**
  * The Controller class is the main class of the application. 
