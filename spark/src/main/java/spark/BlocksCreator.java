@@ -32,7 +32,7 @@ public class BlocksCreator {
 	 * @return blocks in the form of (block_key, { [r_id1|info1], [r_id2|info2], ..., [r_idN|infoN]})
 	 */
 	public static JavaPairRDD<String, Set<List<String>>> createBlocks( JavaPairRDD<String, Tuple2<String, String>> resourceIndex,
-																		    JavaPairRDD<String, List<String>> resources) {
+																	   JavaPairRDD<String, List<String>> resources) {
 		
 		Function2<Set<List<String>>,List<String>,Set<List<String>>> seqFunc = 
 				new Function2<Set<List<String>>,List<String>,Set<List<String>>>(){
@@ -65,13 +65,18 @@ public class BlocksCreator {
 		 * (block_key, [r_id|info])
 		 */
 		return 
-				resourceIndex.join(resources)
-					  .mapToPair(new PairFunction<Tuple2<String,Tuple2<Tuple2<String, String>,List<String>>>,String,List<String>>(){
+			resourceIndex
+			.join(resources)
+			.mapToPair(new PairFunction<Tuple2<String,Tuple2<Tuple2<String, String>,List<String>>>,
+					                    String,
+					                    List<String>>()
+                    		{
 							private static final long serialVersionUID = 1L;
 					
 							@Override
 							public Tuple2<String,List<String>> call(
-									Tuple2<String,Tuple2<Tuple2<String, String>, List<String>>> pair) throws Exception {
+									Tuple2<String,Tuple2<Tuple2<String, String>, List<String>>> pair) 
+							throws Exception {
 								// TODO Auto-generated method stub
 								Tuple2<String, String> wordResourceId_pair = pair._2._1;
 								
